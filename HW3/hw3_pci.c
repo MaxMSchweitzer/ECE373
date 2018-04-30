@@ -1,11 +1,13 @@
 /* Max Schweitzer
    ECE 373
-   Homework 2 - Char Driver
-   This code implements a basic character driver,
+   Homework 3 - PCI LED Driver
+   This code implements a basic pci driver,
    with open, close, read, and write functions,
-   and the ability to set a module parameter (syscall_val)
-   on the command line when using insmod.
-   4/22/18
+   and the ability to blink an LED for the
+   Intel 82540EM Gigabit Ethernet Controller.
+   PCI functions implemented are probe and 
+   remove.
+   4/30/18
 */   
 
 #include <linux/module.h>
@@ -19,8 +21,9 @@
 #include <linux/pci.h>
 
 #define DEV_COUNT 2
-#define DEV_NAME "HW2-Max"
+#define DEV_NAME "HW3-Max"
 
+// TODO maybe do read modify write?
 #define PE_LED_MASK 0x0
 #define PE_REG_LEDS 0x0E00
 
@@ -44,9 +47,7 @@ module_param(new_leds, int, 0);
 
 static const struct pci_device_id pe_pci_tbl[] = {
   { PCI_DEVICE(0x8086, 0x100e), 0, 0, 0 },
-  /* more device ids can be listed here */
 
-  /* required last entry */
   {0, }
 };
 
@@ -70,15 +71,11 @@ static int release(struct inode *inode, struct file *file)
   return 0;
 }
 
-// Simple read function, allowing the current value of syscall_val to be passed to a user.
+// Simple read function, allowing the current value of LEDCTL register to be passed to user.
 static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 {
   ssize_t result;
-  //char temp[20];
   uint32_t led_reg;
- 
-
-  printk(KERN_INFO "In read");
  
   // Make sure we stay within our bounds and don't go into an infinite loop.
   if (*offset >= sizeof(uint32_t))
@@ -86,7 +83,6 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
     *offset = 0;
     return 0;
   }
- 
 
   // Make sure the user actually gave us something valid to play with.
   if (!buf)
@@ -96,14 +92,7 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
     goto out;
   }
 
-  
-
-  // Convert from int to char, so that it plays nicely with user space
-  // assuming it's a char array.
-  //snprintf(temp, sizeof(int),"%d", dev.syscall_val);
-
   led_reg = readl(pe->hw_addr + PE_REG_LEDS);
-  //dev_info(&pdev->dev, "led_reg = 0x%02x\n", led_reg);
 
   // Send it to the user.
   if (copy_to_user(buf, &led_reg, sizeof(uint32_t)))
@@ -124,7 +113,8 @@ out:
 }
 
 
-// Simple write function, allowing user space to modify syscall_val.
+//TODO Data validity checking?
+// Simple write function, allowing user space to modify LEDCTL value.
 static ssize_t kern_write(struct file *file, const char __user *buf, size_t len, loff_t * offset)
 {
   char *kern_buf;
@@ -158,26 +148,7 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
     goto mem_out;
   }
 
-  //printk(KERN_INFO "kern_buf: %s\n", kern_buf);
-
   result = len;
-
-  // Convert from char into int and assign it to our value internally.
-  //val = kstrtol(kern_buf, 16, ptr_result);
-  
-  //printk(KERN_INFO "*ptr_result: 0x%08x\n", *ptr_result);
-
-
-
-  //to_write = *ptr_result;
-
-  printk(KERN_INFO "to_write: 0x%08x\n", to_write);
-
-  //dev.syscall_val = *ptr_result;
-  // Since the test variable is our easy way to interface a parameter with syscall_val,
-  // make sure that stays current.
-  //test = *ptr_result;
-
   writel(to_write, pe->hw_addr + PE_REG_LEDS);
   
   *offset = 0;
@@ -199,20 +170,16 @@ static struct file_operations dev_fops = {
   .release = release
 };
 
+// TODO clean up comments, maybe rename some stuff
 static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-  //struct pes *pe;
   uint32_t ioremap_len;
   uint32_t led_reg;
   int bars, err;
 
-  printk(KERN_INFO "In Probe! About to enable!\n");
-  
   err = pci_enable_device_mem(pdev);
   if (err)
     return err;
-
-  printk(KERN_INFO "About to DMA?!\n");
 
   /* set up for high or low dma */
   err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
@@ -222,11 +189,7 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
     goto err_dma;
   }
 
-  printk(KERN_INFO "About to BARS!\n");
-
   bars = pci_select_bars(pdev, IORESOURCE_MEM);
-
-  printk(KERN_INFO "About to request region!\n");
 
   /* set up pci connections */
   err = pci_request_selected_regions(pdev, bars, pe_driver_name);
@@ -237,8 +200,6 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
   pci_set_master(pdev);
  
-  printk(KERN_INFO "About to alloc!\n");
-
   pe = kzalloc(sizeof(*pe), GFP_KERNEL);
   if (!pe) {
     err = -ENOMEM;
@@ -246,8 +207,6 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
   }
   pe->pdev = pdev;
   pci_set_drvdata(pdev, pe);
- 
-  printk(KERN_INFO "IO stuff!\n");
 
   /* map device memory */
   ioremap_len = min_t(int, pci_resource_len(pdev, 0), 1024);
@@ -259,19 +218,7 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 (unsigned int)pci_resource_len(pdev, 0), err);
     goto err_ioremap;
   }
-
   
- 
-  led_reg = readl(pe->hw_addr + PE_REG_LEDS);
-  dev_info(&pdev->dev, "led_reg = 0x%02x\n", led_reg); 
-
-/*
-  if (new_leds) {
-    led_reg = (led_reg & ~PE_REG_LEDS) | (new_leds & PE_LED_MASK);
-    writeb(led_reg, (pe->hw_addr + PE_REG_LEDS));
-    dev_info(&pdev->dev, "new led_reg = 0x%02x\n", led_reg);
-  }
-*/
   return 0;
 
 err_ioremap:
