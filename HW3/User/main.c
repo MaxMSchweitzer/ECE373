@@ -21,7 +21,7 @@ int main()
   int fd;
   uint32_t toSend = 0;
 
-  fd = open("/dev/hw2_kernel", O_RDWR);
+  fd = open("/dev/hw3_pci", O_RDWR);
   if (fd < 0)
   {
     printf("Open error: %d\n", fd);
@@ -39,12 +39,6 @@ int main()
   }
 
   printf("Was read: 0x%08x\n", toSend);
-
-  // Now get a value from the user and send it over.
-  //printf("Enter a number in hex: ");
-  //scanf("%08x", &toSend);
-
-  //printf("Will write: 0x%08x\n", toSend);
 
   // Turns off LEDs1,2,3 and turns on LED0
   toSend = 0x0f0f0f0e;
