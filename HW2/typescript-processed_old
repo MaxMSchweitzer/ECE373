@@ -1,0 +1,124 @@
+Script started on Mon 23 Apr 2018 10:29:05 AM PDT
+
+============================================================
+What to turn in: 3. Loading and running, before module param
+============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2$ sudo insmod hw2_kernel.ko
+max@MaxVirt:~/ECE373-A2/HW2$ sudo mknod /dev/hw2_kernel
+max@MaxVirt:~/ECE373-A2/HW2$ cd User/
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo ./user
+Was read: 25
+Enter a number: 45
+Will write: 45
+
+============================================================
+What to turn in: 4. Typescript of /proc/devices
+(I outlined mine in "=" like these to make it easy to find)
+============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2/User$  cat /proc/devices
+Character devices:
+  1 mem
+  4 /dev/vc/0
+  4 tty
+  4 ttyS
+  5 /dev/tty
+  5 /dev/console
+  5 /dev/ptmx
+  5 ttyprintk
+  6 lp
+  7 vcs
+ 10 misc
+ 13 input
+ 21 sg
+ 29 fb
+ 89 i2c
+ 99 ppdev
+108 ppp
+116 alsa
+128 ptm
+136 pts
+180 usb
+189 usb_device
+204 ttyMAX
+226 drm
+==============================
+243 HW2-Max
+==============================
+244 hidraw
+245 aux
+246 virtio-portsdev
+247 bsg
+248 watchdog
+249 rtc
+250 dax
+251 dimmctl
+252 ndctl
+253 tpm
+254 gpiochip
+
+Block devices:
+  2 fd
+259 blkext
+  7 loop
+  8 sd
+  9 md
+ 11 sr
+ 65 sd
+ 66 sd
+ 67 sd
+ 68 sd
+ 69 sd
+ 70 sd
+ 71 sd
+128 sd
+129 sd
+130 sd
+131 sd
+132 sd
+133 sd
+134 sd
+135 sd
+252 virtblk
+253 device-mapper
+254 mdp
+
+============================================================
+What to turn in: 3. Loading and running, after module param
+Also shows use of "cat" command on sysfs.
+============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo rmmod hw2_kernel
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo rm /dev/hw2_kernel
+max@MaxVirt:~/ECE373-A2/HW2/User$ cd ..
+max@MaxVirt:~/ECE373-A2/HW2$ sudo insmod hw2_kernel.ko test=42
+max@MaxVirt:~/ECE373-A2/HW2$ sudo mknod /dev/hw2_kernel
+max@MaxVirt:~/ECE373-A2/HW2$ cd User/
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo ./user
+Was read: 42
+Enter a number: 23
+Will write: 23
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo cat /sys/module/hw2_kernel/parameters/test
+23
+max@MaxVirt:~/ECE373-A2/HW2/User$ exit
+exit
+
+Script done on Mon 23 Apr 2018 10:31:41 AM PDT
+
+============================================================
+Included below is the output of dmesg for the two instances
+I ran for the above typescript.
+============================================================
+
+[80016.856969] Allocated device successfuly at major: 243
+[80033.842132] Opened instance.
+[80033.842137] User was passed 25
+[80037.032333] User wrote 45
+[80037.032475] Closed instance.
+[80086.874796] Unloaded.
+[80113.062969] Allocated device successfuly at major: 243
+[80125.153038] Opened instance.
+[80125.153043] User was passed 42
+[80128.940344] User wrote 23
+[80128.940396] Closed instance.

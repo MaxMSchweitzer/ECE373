@@ -1,0 +1,133 @@
+Script started on Mon 23 Apr 2018 11:43:44 AM PDT
+
+=============================================================
+Make being run, not too important.
+=============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2$ make clean
+make -C /lib/modules/4.13.0-38-generic/build SUBDIRS=/home/max/ECE373-A2/HW2 clean
+make[1]: Entering directory '/usr/src/linux-headers-4.13.0-38-generic'
+  CLEAN   /home/max/ECE373-A2/HW2/.tmp_versions
+  CLEAN   /home/max/ECE373-A2/HW2/Module.symvers
+make[1]: Leaving directory '/usr/src/linux-headers-4.13.0-38-generic'
+max@MaxVirt:~/ECE373-A2/HW2$ make
+make -C /lib/modules/4.13.0-38-generic/build SUBDIRS=/home/max/ECE373-A2/HW2 modules
+make[1]: Entering directory '/usr/src/linux-headers-4.13.0-38-generic'
+  CC [M]  /home/max/ECE373-A2/HW2/hw2_kernel.o
+  Building modules, stage 2.
+  MODPOST 1 modules
+  CC	  /home/max/ECE373-A2/HW2/hw2_kernel.mod.o
+  LD [M]  /home/max/ECE373-A2/HW2/hw2_kernel.ko
+make[1]: Leaving directory '/usr/src/linux-headers-4.13.0-38-generic'
+
+=============================================================
+What to turn in: 3. Loading and running, before module param
+=============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2$ sudo insmod hw2_kernel.ko
+max@MaxVirt:~/ECE373-A2/HW2$ sudo mknod /dev/hw2_kernel c 243 0
+max@MaxVirt:~/ECE373-A2/HW2$ cd User/
+max@MaxVirt:~/ECE373-A2/HW2/User$ ls
+main.c	user
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo ./user
+Was read: 25
+Enter a number: 37
+Will write: 37
+Was read after write: 37
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo rmmod hw2_kernelnel
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo rm /dev/hw2_kernel
+max@MaxVirt:~/ECE373-A2/HW2/User$ cd ..
+
+=============================================================
+What to turn in: 3. Loading and running, after module param
+Also shows use of "cat" command on sysfs.
+=============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2$ sudo insmod hw2_kernel.ko test=42
+max@MaxVirt:~/ECE373-A2/HW2$ sudo mknod /dev/hw2_kernel2 c 243 0
+max@MaxVirt:~/ECE373-A2/HW2$ cd User/
+max@MaxVirt:~/ECE373-A2/HW2/User$ sudo ./user
+Was read: 42
+Enter a number: 13
+Will write: 13
+Was read after write: 13
+max@MaxVirt:~/ECE373-A2/HW2/User$ cat /sys/module/hw2_kernel/parameters/test
+13
+
+=============================================================
+What to turn in: 4. Typescript of /proc/devices
+(I outlined mine in "=" like these to make it easy to find)
+=============================================================
+
+max@MaxVirt:~/ECE373-A2/HW2/User$ cat /proc/devices
+Character devices:
+  1 mem
+  4 /dev/vc/0
+  4 tty
+  4 ttyS
+  5 /dev/tty
+  5 /dev/console
+  5 /dev/ptmx
+  5 ttyprintk
+  6 lp
+  7 vcs
+ 10 misc
+ 13 input
+ 21 sg
+ 29 fb
+ 89 i2c
+ 99 ppdev
+108 ppp
+116 alsa
+128 ptm
+136 pts
+180 usb
+189 usb_device
+204 ttyMAX
+226 drm
+=============================================================
+243 HW2-Max
+=============================================================
+244 hidraw
+245 aux
+246 virtio-portsdev
+247 bsg
+248 watchdog
+249 rtc
+250 dax
+251 dimmctl
+252 ndctl
+253 tpm
+254 gpiochip
+
+Block devices:
+  2 fd
+259 blkext
+  7 loop
+  8 sd
+  9 md
+ 11 sr
+ 65 sd
+ 66 sd
+ 67 sd
+ 68 sd
+ 69 sd
+ 70 sd
+ 71 sd
+128 sd
+129 sd
+130 sd
+131 sd
+132 sd
+133 sd
+134 sd
+135 sd
+252 virtblk
+253 device-mapper
+254 mdp
+max@MaxVirt:~/ECE373-A2/HW2/User$ exit
+exit
+
+Script done on Mon 23 Apr 2018 11:46:20 AM PDT
+
+

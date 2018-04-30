@@ -1,0 +1,8 @@
+Script started on Mon 09 Apr 2018 10:15:24 PM PDT
+max@MaxVirt:~/ECE373-A2/HW1$ ./faren_convert
+Enter a temparature in farenheit: 64
+Your temparature in farenheit: 64.000000
+Your temparature in celsius: 17.777779
+max@MaxVirt:~/ECE373-A2/HW1$ exit
+
+Script done on Mon 09 Apr 2018 10:15:45 PM PDT
