@@ -41,10 +41,13 @@ int main()
   printf("Was read: 0x%08x\n", toSend);
 
   // Now get a value from the user and send it over.
-  printf("Enter a number in hex: ");
-  scanf("%08x", &toSend);
+  //printf("Enter a number in hex: ");
+  //scanf("%08x", &toSend);
 
-  printf("Will write: 0x%08x\n", toSend);
+  //printf("Will write: 0x%08x\n", toSend);
+
+  // Turns off LEDs1,2,3 and turns on LED0
+  toSend = 0x0f0f0f0e;
 
   ret = write(fd, &toSend, sizeof(uint32_t));
   if (ret < 0)
@@ -64,6 +67,18 @@ int main()
   }
 
   printf("Was read after write: 0x%08x\n", toSend);
+
+  sleep(2); 
+
+  // Turns off LEDs1,2,3,0
+  toSend = 0x0f0f0f0f;
+
+  ret = write(fd, &toSend, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error writing!");
+    return 1;
+  }
 
   ret = close(fd);
 
