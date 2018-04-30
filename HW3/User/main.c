@@ -15,11 +15,13 @@
 #include <stdint.h>
 
 #define LENGTH 256
+#define LED0_MASK 0x0000000F
 
 int main()
 {
   int fd;
   uint32_t toSend = 0;
+  uint32_t toRead = 0;
 
   fd = open("/dev/hw3_pci", O_RDWR);
   if (fd < 0)
@@ -31,17 +33,23 @@ int main()
   int ret;
 
   // First, lets read the current value.
-  ret = read(fd, &toSend, sizeof(uint32_t));
+  ret = read(fd, &toRead, sizeof(uint32_t));
   if (ret < 0)
   {
     printf("Error reading");
     return 1;
   }
 
-  printf("Was read: 0x%08x\n", toSend);
+  printf("Was read:             0x%08x\n", toRead);
 
-  // Turns off LEDs1,2,3 and turns on LED0
-  toSend = 0x0f0f0f0e;
+  // Turn on LED0
+  toSend = 0;
+ 
+  // Read, modify, write so we don't clobber reserved bits.
+  toRead = toRead & (~LED0_MASK);
+  toSend = toRead | 0x0000000e;
+
+  printf("Will write:           0x%08x\n", toSend);
 
   ret = write(fd, &toSend, sizeof(uint32_t));
   if (ret < 0)
@@ -51,29 +59,35 @@ int main()
   }
 
   // Overwrite before we read again.
-  toSend = 0;
+  toRead = 0;
 
-  ret = read(fd, &toSend, sizeof(uint32_t));
+  ret = read(fd, &toRead, sizeof(uint32_t));
   if (ret < 0)
   {
     printf("Error reading");
     return 1;
   }
 
-  printf("Was read after write: 0x%08x\n", toSend);
+  printf("Was read after write: 0x%08x\n", toRead);
 
   sleep(2); 
 
-  // Turns off LEDs1,2,3,0
-  toSend = 0x0f0f0f0f;
+  // Turn off LED0
+  toSend = 0;
 
+  // Read modify write
+  toRead = toRead & (~LED0_MASK);
+  toSend = toRead | 0x0000000f;
+
+  printf("Will write:           0x%08x\n", toSend);
+  
   ret = write(fd, &toSend, sizeof(uint32_t));
   if (ret < 0)
   {
     printf("Error writing!");
     return 1;
   }
-
+  
   ret = close(fd);
 
   return ret;

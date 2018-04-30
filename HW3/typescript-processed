@@ -1,0 +1,48 @@
+Script started on Mon 30 Apr 2018 02:10:05 PM PDT
+.kot@MaxVirt:/home/max/ECE373-A2/HW3# insmod hw3_pci.
+_pci@ca243r0:/home/max/ECE373-A2/HW3# mknod /dev/hw3
+.0ot@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+.0o-vMaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03.
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: e1000
+	Kernel modules: e1000
+
+root@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03.
+3.0o>0/sys/module/e1000/drivers/pci\:e1000/unbind
+indt>M/sys/module/hw3_pci/drivers/pci\:pci_example/b
+inde1000/drivers/pci\:e1000/unbindpci\:pci_example/bi
+lspci -s 00:03.0 -v
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: pci_example
+	Kernel modules: e1000
+
+root@MaxVirt:/home/max/ECE373-A2/HW3# cd User/
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# lspci0-s00:03.00-v /sys/module/hw3_pci/drivers/pci\:pci_examp
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# cd User/
+./user
+Was read:	      0x00000602
+Will write:	      0x0000060e
+Was read after write: 0x0000060e
+Will write:	      0x0000000f
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# ./user
+Was read:	      0x0000000f
+Will write:	      0x0000000e
+Was read after write: 0x0000000e
+Will write:	      0x0000000f
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# exit
+exit
+
+Script done on Mon 30 Apr 2018 02:19:49 PM PDT

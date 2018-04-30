@@ -1,3 +1,38 @@
+=============================================================
+Max Schweitzer
+ECE 373 - HW3 - PCI LED driver
+PJ
+4/30/2018
+=============================================================
+
+=============================================================
+What to turn in: 1. Answers to the questions in Part 1
+=============================================================
+
+1. Atomic
+    a. Realtek ALC888
+    b. Super IO Winbond W83627DHG
+    c. 2
+        i. GbE LAN1: Intel 82567V
+       ii. GbE LAN2: Intel 82583V
+    d. 6
+2. Network Noodling
+    a. Leads 31, 30, 33
+    b. 0x00000 / 0x00004
+    c. Bit 26
+3. Winken, Blinken, and Nod
+    a. LEDCTRL 0x00E00
+    b. To bits 11:8 write b'1111
+    c. To bit 23 write b'1
+4.  EIEIO
+    a. Winbond Electronics Corporation
+    b. Yep
+    c. Contact the company directly
+
+=============================================================
+What to turn in: 2. Kernel source and Makefile
+=============================================================
+
 /* Max Schweitzer
    ECE 373
    Homework 3 - PCI LED Driver
@@ -159,7 +194,8 @@ static struct file_operations dev_fops = {
   .release = release
 };
 
-// TODO clean up comments, maybe rename some stuff
+// Probe function, mostly taken from pci_example.c and pci_realtek.c
+// provided on D2L
 static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
   uint32_t ioremap_len;
@@ -169,7 +205,8 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
   if (err)
     return err;
 
-  /* set up for high or low dma */
+  // Don't really need this, but it doesn't hurt anything
+  // so I didn't bother removing it.
   err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
   if (err) 
   {
@@ -179,7 +216,7 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
   bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
-  /* set up pci connections */
+  // Set up PCI connections
   err = pci_request_selected_regions(pdev, bars, pe_driver_name);
   if (err) {
     dev_info(&pdev->dev, "pci_request_selected_regions failed %d\n", err);
@@ -196,7 +233,7 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
   pe->pdev = pdev;
   pci_set_drvdata(pdev, pe);
 
-  /* map device memory */
+  // Map our devices memory
   ioremap_len = min_t(int, pci_resource_len(pdev, 0), 1024);
   pe->hw_addr = ioremap(pci_resource_start(pdev, 0), ioremap_len);
   if (!pe->hw_addr) {
@@ -219,14 +256,15 @@ err_dma:
   return err;
 }
 
+// Also pretty much taken from pci_example.c and pci_realtek.c
 static void pe_remove(struct pci_dev *pdev)
 {
   struct pes *pe = pci_get_drvdata(pdev);
 
-  /* unmap device from memory */
+  // Unmap our device from memory
   iounmap(pe->hw_addr);
 
-  /* free any allocated memory */
+  // Free allocated memory
   kfree(pe);
 
   pci_release_selected_regions(pdev, pci_select_bars(pdev, IORESOURCE_MEM));
@@ -294,3 +332,173 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 module_init(kern_init);
 module_exit(kern_exit);
+
+=============================================================
+Makefile
+=============================================================
+
+KERNEL_DIR = /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+
+obj-m += hw3_pci.o
+
+default:
+	$(MAKE) -C $(KERNEL_DIR) SUBDIRS=$(PWD) modules
+
+clean:
+	$(MAKE) -C $(KERNEL_DIR) SUBDIRS=$(PWD) clean
+
+
+=============================================================
+What to turn in: 3. User space source
+=============================================================
+
+/* Max Schweitzer
+   ECE 373
+   Homework 3 - PCI LED Driver
+   This code implements a user space program to
+   test a basic PCI driver that can blink an LED.
+   4/30/18
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+
+#define LENGTH 256
+#define LED0_MASK 0x0000000F
+
+int main()
+{
+  int fd;
+  uint32_t toSend = 0;
+  uint32_t toRead = 0;
+
+  fd = open("/dev/hw3_pci", O_RDWR);
+  if (fd < 0)
+  {
+    printf("Open error: %d\n", fd);
+    return 1;
+  }
+
+  int ret;
+
+  // First, lets read the current value.
+  ret = read(fd, &toRead, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error reading");
+    return 1;
+  }
+
+  printf("Was read:             0x%08x\n", toRead);
+
+  // Turn on LED0
+  toSend = 0;
+ 
+  // Read, modify, write so we don't clobber reserved bits.
+  toRead = toRead & (~LED0_MASK);
+  toSend = toRead | 0x0000000e;
+
+  printf("Will write:           0x%08x\n", toSend);
+
+  ret = write(fd, &toSend, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error writing!");
+    return 1;
+  }
+
+  // Overwrite before we read again.
+  toRead = 0;
+
+  ret = read(fd, &toRead, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error reading");
+    return 1;
+  }
+
+  printf("Was read after write: 0x%08x\n", toRead);
+
+  sleep(2); 
+
+  // Turn off LED0
+  toSend = 0;
+
+  // Read modify write
+  toRead = toRead & (~LED0_MASK);
+  toSend = toRead | 0x0000000f;
+
+  printf("Will write:           0x%08x\n", toSend);
+  
+  ret = write(fd, &toSend, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error writing!");
+    return 1;
+  }
+  
+  ret = close(fd);
+
+  return ret;
+}
+
+=============================================================
+What to turn in: 4. Typescript unbind, bind, and userspace
+                    being run. 
+=============================================================
+
+Script started on Mon 30 Apr 2018 02:10:05 PM PDT
+.kot@MaxVirt:/home/max/ECE373-A2/HW3# insmod hw3_pci.
+_pci@ca243r0:/home/max/ECE373-A2/HW3# mknod /dev/hw3
+.0ot@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+.0o-vMaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03.
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: e1000
+	Kernel modules: e1000
+
+root@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03.
+3.0o>0/sys/module/e1000/drivers/pci\:e1000/unbind
+indt>M/sys/module/hw3_pci/drivers/pci\:pci_example/b
+inde1000/drivers/pci\:e1000/unbindpci\:pci_example/bi
+lspci -s 00:03.0 -v
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: pci_example
+	Kernel modules: e1000
+
+root@MaxVirt:/home/max/ECE373-A2/HW3# cd User/
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# lspci0-s00:03.00-v /sys/module/hw3_pci/drivers/pci\:pci_examp
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# cd User/
+./user
+Was read:	      0x00000602
+Will write:	      0x0000060e
+Was read after write: 0x0000060e
+Will write:	      0x0000000f
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# ./user
+Was read:	      0x0000000f
+Will write:	      0x0000000e
+Was read after write: 0x0000000e
+Will write:	      0x0000000f
+root@MaxVirt:/home/max/ECE373-A2/HW3/User# exit
+exit
+
+Script done on Mon 30 Apr 2018 02:19:49 PM PDT
+
