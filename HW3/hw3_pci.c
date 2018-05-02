@@ -23,7 +23,7 @@
 #define DEV_COUNT 2
 #define DEV_NAME "HW3-Max"
 
-#define PE_REG_LEDS 0x0E00
+#define PE_REG_LEDS 0x00E00
 
 static struct dev_info
 {

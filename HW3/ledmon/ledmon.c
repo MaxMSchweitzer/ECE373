@@ -14,7 +14,7 @@
 #include <getopt.h>
 #include <sys/mman.h>
 #include <sys/types.h>
-#include <linux/pci.h>
+#include <pci/pci.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -90,31 +90,30 @@ int open_dev(off_t base_addr, volatile void **mem)
 }
 
 /* write to a device register */
-void ew32(uint32_t reg, uint32_t value)
+void ew32(u32 reg, u32 value)
 {
-	uint32_t *p = (uint32_t *)(e1000e_mem + reg);
+	u32 *p = (u32 *)(e1000e_mem + reg);
 	*p = value;
 }
 
 /* read from a device register */
-uint32_t er32(uint32_t reg)
+u32 er32(u32 reg)
 {
-	uint32_t *p = (uint32_t *)(e1000e_mem + reg);
-	uint32_t v = *p;
+	u32 *p = (u32 *)(e1000e_mem + reg);
+	u32 v = *p;
 	return v;
 }
 
 /* decode the led bits into on or off (true or false) */
-bool get_led_state(uint8_t led_bits)
+bool get_led_state(u8 led_bits)
 {
 	bool led_state;
 	FILE *input;
 	char speed_buf[16];
 	char filename[64];
 	int speed = 0;
-	uint8_t mode;
+	u8 mode;
 
-	/* If the 'speed' file exists, we have link */
 	snprintf(filename, sizeof(filename), "/sys/class/net/%s/speed", portname);
 	input = fopen(filename, "r");
 	if (!input) {
@@ -131,6 +130,7 @@ bool get_led_state(uint8_t led_bits)
 	/* should the LED be on or off? */
 	led_state = false;
 	mode = led_bits & E1000_LEDCTL_MODE_MASK;
+	/* If the 'speed' file exists, we have link */
 	switch (mode) {
 	case E1000_LEDCTL_MODE_LINK_10K:
 		led_state = (speed == 10 || speed == 1000);
@@ -203,8 +203,8 @@ bool get_led_state(uint8_t led_bits)
 void print_leds()
 {
 	bool led0, led1, led2, led3;
-	uint8_t led_bits;
-	uint32_t ledctl;
+	u8 led_bits;
+	u32 ledctl;
 
 	ledctl = er32(E1000_LEDCTL);
 
@@ -220,13 +220,18 @@ void print_leds()
 	led_bits = (ledctl >> E1000_LEDCTL_LED3_SHIFT) & 0xFF;
 	led3 = get_led_state(led_bits);
 
-	printf("%s.0 LEDs:   %c %c %c %c\r",
+	printf("%s LEDs:   %c %c %c %c\r",
 		pci_bus_slot,
 		led0 ? '0' : '.',
 		led1 ? '0' : '.',
 		led2 ? '0' : '.',
 		led3 ? '0' : '.');
 	fflush(stdout);
+}
+
+void usage(char *prog)
+{
+	fprintf(stderr, "Usage: %s -s <bus:slot.func> [-L] [-v] [ethportname]\n", prog);
 }
 
 int main(int argc, char **argv)
@@ -239,30 +244,68 @@ int main(int argc, char **argv)
 	off_t base_addr;
 	FILE *input;
 	int ret = 0;
+	int ch;
 	int len;
 
 	if (getuid() != 0) {
-		fprintf(stderr, "%s: must be run as root\n", argv[0]);
+		fprintf(stderr, "%s: Must run as root.\n", argv[0]);
 		exit(1);
 	}
 
 	if (argv[1] == NULL) {
-		fprintf(stderr, "Usage: %s <bus:slot> [ethX] [-L]\n", argv[0]);
+		fprintf(stderr, "Usage: %s -s <bus:slot.func> [-L] [ethX]\n", argv[0]);
 		exit(1);
 	}
 
-	pci_bus_slot = argv[1];
-	snprintf(buf, sizeof(buf), "lspci -s %s.0", pci_bus_slot);
+	while ((ch = getopt(argc, argv, "vLs:")) != -1) {
+		switch (ch) {
+		case 'L':
+			readloop = true;
+			break;
+		case 's':
+			pci_bus_slot = optarg;
+			break;
+		case 'v':
+			printf("%s: version 3\n", argv[0]);
+			exit(0);
+			break;
+		default:
+			fprintf(stderr, "unknown arg '%c'\n", ch);
+			usage(argv[0]);
+			exit(1);
+			break;
+		}
+	}
 
-	/* Index depends on whether or not user specified <ethX> argument */
-	if ((argc == 3 && strcmp(argv[2], "-L") == 0) ||
-	    (argc == 4 && strcmp(argv[3], "-L") == 0))
-		readloop = true;
+	if (argv[optind] != NULL) {
+		portname = argv[optind];
+
+		/* Does it exist? */
+		snprintf(buf, sizeof(buf), "ip -br link show %s", portname);
+		input = popen(buf, "r");
+		if (!input) {
+			perror(portname);
+			exit(1);
+		}
+
+		fgets(buf, sizeof(pci_entry), input);
+		fclose(input);
+		if (strncmp(portname, buf, strlen(portname))) {
+			fprintf(stderr, "%s not found\n", portname);
+			exit(1);
+		}
+	}
+
+	if (!pci_bus_slot) {
+		usage(argv[0]);
+		exit(1);
+	}
 
 	/* Does pci device specified by the user exist? */
+	snprintf(buf, sizeof(buf), "lspci -s %s", pci_bus_slot);
 	input = popen(buf, "r");
 	if (!input) {
-		perror("pci entry specified does not exist");
+		perror(pci_bus_slot);
 		exit(1);
 	}
 
@@ -270,33 +313,26 @@ int main(int argc, char **argv)
 	fclose(input);
 	len = strlen(pci_entry);
 	if (len <= 1) {
-		fprintf(stderr, "%s.0 not found\n", pci_bus_slot);
+		fprintf(stderr, "%s not found\n", pci_bus_slot);
 		exit(1);
 	}
 
-	/* Using the network interface to determine link speed is optional */
-	if (argc == 4 && strlen(argv[2]) > IFNAMSIZ)
-		fprintf(stderr, "%s: bad interface name\n", argv[0]);
-	else if (argc == 4)
-		portname = argv[2];
-
-#define LSPCI_DEVICE_TYPE_OFFSET 8
-	if (strncmp(pci_entry + LSPCI_DEVICE_TYPE_OFFSET, "Ethernet controller",
-		    strlen("Ethernet controller"))) {
-			fprintf(stderr, "%s wrong pci device\n", pci_entry);
-			exit(1);
-	}
-
-#define LSPCI_DEVICE_SPEED_OFFSET 55
-	if (strncmp(pci_entry + LSPCI_DEVICE_SPEED_OFFSET, "Gigabit",
-		    strlen("Gigabit"))) {
-		printf("%s\n", pci_entry + LSPCI_DEVICE_SPEED_OFFSET);
-		fprintf(stderr, "%s wrong pci device speed\n", pci_entry);
+	/* Let's make sure this is an Intel ethernet device.  A better
+	 * way for doing this would be to look at the vendorId and the
+	 * deviceId, but we're too lazy to find all the deviceIds that
+	 * will work here, so we'll live a little dangerously and just
+	 * be sure it is an Intel device according to the description.
+	 * Oh, and this is exactly how programmers get into trouble.
+	 */
+	if (!strstr(pci_entry, "Ethernet controller") ||
+	    !strstr(pci_entry, "Intel")) {
+		fprintf(stderr, "%s wrong pci device\n", pci_entry);
 		exit(1);
 	}
 
+	/* Only grab the first memory bar */
 	snprintf(buf, sizeof(buf),
-		 "lspci -s %s.0 -v | grep \"Memory at\" | awk '{ print $3 }'",
+		 "lspci -s %s -v | awk '/Memory at/ { print $3 }' | head -1",
 		 pci_bus_slot);
 	input = popen(buf, "r");
 	if (!input) {
@@ -316,7 +352,6 @@ int main(int argc, char **argv)
 	/* open and read memory */
 	dev_mem_fd = open_dev(base_addr, &e1000e_mem);
 	if (dev_mem_fd >= 0 && e1000e_mem) {
-		/* printf("LEDCTL 0x%x\n", er32(E1000_LEDCTL)); */
 		do {
 			print_leds();
 			usleep(250);
