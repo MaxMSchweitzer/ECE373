@@ -43,7 +43,7 @@ static dev_t dev_node;
 // Starting value for syscall_val, gets applied during init.
 static int blink = 2;
 
-module_param(blink, int, S_IRUSR | S_IWUSR);
+module_param(blink, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
 static const struct pci_device_id pe_pci_tbl[] = {
   { PCI_DEVICE(0x8086, 0x100e), 0, 0, 0 },
@@ -80,7 +80,7 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
   char temp[20];
  
   // Make sure we stay within our bounds and don't go into an infinite loop.
-  if (*offset >= sizeof(uint32_t))
+  if (*offset >= sizeof(int))
   {
     *offset = 0;
     return 0;
@@ -98,13 +98,13 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
 
   //int result = kstrtol(
 
-  snprintf(temp, sizeof(int),"%d", dev.blink_rate);
+  snprintf(temp, sizeof(uint32_t),"%d\n", dev.blink_rate);
 
 
   // Send it to the user.
-  if (copy_to_user(buf, &temp, sizeof(uint32_t)))
+  if (copy_to_user(buf, temp, strlen(temp)))
   {
-    printk(KERN_ERR "!buf\n");
+    printk(KERN_ERR "Copy to!\n");
     result = -EFAULT;
     goto out;
   }
@@ -113,7 +113,7 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
   *offset += len;
 
   // If we made it here, we passed it back okay. Probably.
-  //printk(KERN_INFO "Passed user led_reg = 0x%08x\n", led_reg);
+  printk(KERN_INFO "Passed user %d\n", dev.blink_rate);
 
 out:
   return result;
@@ -123,15 +123,20 @@ out:
 // Simple write function, allowing user space to modify LEDCTL value.
 static ssize_t kern_write(struct file *file, const char __user *buf, size_t len, loff_t * offset)
 {
+
+  char *kern_buf;
   ssize_t result;
-  long *ptr_result;
-  long store_val;
-  uint32_t to_write = 0;
+  int *ptr_result;
+  int store_val;
+  long to_write = 0;
   ptr_result = &store_val;
+  int val;
+  char **dest;
 
   // Did the user give us something okay?
   if (!buf)
   {
+    printk(KERN_ERR "!buf\n");
     result = -EINVAL;
     goto out;
   }
@@ -139,28 +144,60 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
   // Make sure it's only 32 bits.
   if (len > sizeof(uint32_t))
   {
+    printk(KERN_ERR "Size!\n");
     result = -EFAULT;
     goto out;
   }
 
-  // Take in the user value.
-  if (copy_from_user(&to_write, buf, len))
+  // Get a chunk of memory.
+  kern_buf = kmalloc(len, GFP_KERNEL);
+
+  if (!kern_buf)
   {
+    result = -ENOMEM;
+    goto mem_out;
+  }
+
+  // Take in the user value.
+  if (copy_from_user(kern_buf, buf, len))
+  {
+    printk(KERN_ERR "Copy from error!\n");
     result = -EFAULT;
     goto out;
   }
+
+  val = strlen(kern_buf);
+
+  printk(KERN_INFO "strlen(kern_buf) %d\n", val);
+  printk(KERN_INFO "kern_buf %s\n", kern_buf);
+  //val = kstrtoint(kern_buf, 10, ptr_result);
+ 
+  to_write = simple_strtol(kern_buf, dest, 10);
+
+  //val = sscanf(buf, "%d", &to_write);
+
+  printk(KERN_INFO "to_write %d\n", to_write); 
+  /*if (val)  
+  {
+    printk(KERN_ERR "val %d\n", val); 
+    printk(KERN_ERR "kstrtol!\n");
+    result = -EFAULT;
+    goto out;
+  }*/
 
   result = len;
 
   //writel(to_write, pe->hw_addr + PE_REG_LEDS);
   dev.blink_rate = to_write;  
-
+  blink = to_write;
 
   *offset = 0;
 
   // We should be good then.
   printk(KERN_INFO "User wrote %d\n", to_write);
 
+mem_out:
+  kfree(kern_buf);
 out:
   return result;
 }

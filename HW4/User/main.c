@@ -23,7 +23,7 @@ int main()
   uint32_t toSend = 0;
   uint32_t toRead = 0;
 
-  fd = open("/dev/hw3_pci", O_RDWR);
+  fd = open("/dev/HW4_pci", O_RDWR);
   if (fd < 0)
   {
     printf("Open error: %d\n", fd);
