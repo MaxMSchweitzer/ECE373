@@ -1,0 +1,1 @@
+cmd_/home/max/ECE373-A2/HW4/hw3_pci.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/max/ECE373-A2/HW4/hw3_pci.ko /home/max/ECE373-A2/HW4/hw3_pci.o /home/max/ECE373-A2/HW4/hw3_pci.mod.o ;  true
