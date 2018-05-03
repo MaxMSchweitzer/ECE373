@@ -67,28 +67,34 @@ module_param(blink, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 #define LED_ON  0x0000000e
 #define LED_OFF 0x0000000f
 
-static long toRead = 0;
-static long toSend = 0;
+static uint32_t toRead = 0;
+static uint32_t toSend = 0;
 static bool on = true;
 
 void my_timer_callback(unsigned long data)
 {
   printk(KERN_INFO "Callback!\n");
 
-  mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000 / blink));
-  printk(KERN_INFO "Blink = %d\n", blink);
-  toRead = toRead & (~LED0_MASK);
-  if (on)
+  if (blink > 0)
   {
-    toSend = toRead | LED_ON;
-  }
-  else
-  {
-    toSend = toRead | LED_OFF;
-  }
+    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / blink) / 2));
+    printk(KERN_INFO "Blink = %d\n", ((1000 / blink)) / 2);
+  
+  
+    toRead = readl(pe->hw_addr + PE_REG_LEDS);
+    toRead = toRead & (~LED0_MASK);
+    if (on)
+    {
+      toSend = toRead | LED_ON;
+    }
+    else
+    {
+      toSend = toRead | LED_OFF;
+    }
 
-  writel(toSend, pe->hw_addr + PE_REG_LEDS);
-  on = !on;
+    writel(toSend, pe->hw_addr + PE_REG_LEDS);
+    on = !on;
+  }
 }
 
 
@@ -96,8 +102,12 @@ static int open(struct inode *inode, struct file *file)
 { 
   printk(KERN_INFO "Opened instance.\n");
   //per_sec = 1/blink;
-  mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000 / blink));
-  
+  // TODO MAX maybe a flag here so it doesn't mod timer
+  // anytime it's opened?
+  if (blink > 0)
+  {
+    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / blink) / 2));
+  }
   return 0;
 }
 
@@ -130,7 +140,6 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
     goto out;
   }
 
-  //led_reg = readl(pe->hw_addr + PE_REG_LEDS);
 
   //int result = kstrtol(
 
