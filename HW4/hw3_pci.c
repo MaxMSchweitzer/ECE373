@@ -24,11 +24,30 @@
 #define DEV_NAME "HW4_pci"
 
 #define PE_REG_LEDS 0x00E00
+#define LED0_MASK 0x0000000F
+
 
 #define DEVICE_NAME "pci_char"
 //#define CLASS_NAME "pci"
 
+//static float per_sec;
+
 static struct class *my_pci = NULL;
+
+static struct timer_list my_timer;
+
+static const struct pci_device_id pe_pci_tbl[] = {
+  { PCI_DEVICE(0x8086, 0x100e), 0, 0, 0 },
+
+  {0, }
+};
+
+static char *pe_driver_name = "test_pci_driver";
+
+struct pes {
+  struct pci_dev *pdev;
+  void *hw_addr;
+} *pe;
 
 static struct dev_info
 {
@@ -45,23 +64,40 @@ static int blink = 2;
 
 module_param(blink, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
-static const struct pci_device_id pe_pci_tbl[] = {
-  { PCI_DEVICE(0x8086, 0x100e), 0, 0, 0 },
+#define LED_ON  0x0000000e
+#define LED_OFF 0x0000000f
 
-  {0, }
-};
+static long toRead = 0;
+static long toSend = 0;
+static bool on = true;
 
-static char *pe_driver_name = "test_pci_driver";
+void my_timer_callback(unsigned long data)
+{
+  printk(KERN_INFO "Callback!\n");
 
-struct pes {
-  struct pci_dev *pdev;
-  void *hw_addr;
-} *pe;
+  mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000 / blink));
+  printk(KERN_INFO "Blink = %d\n", blink);
+  toRead = toRead & (~LED0_MASK);
+  if (on)
+  {
+    toSend = toRead | LED_ON;
+  }
+  else
+  {
+    toSend = toRead | LED_OFF;
+  }
+
+  writel(toSend, pe->hw_addr + PE_REG_LEDS);
+  on = !on;
+}
+
 
 static int open(struct inode *inode, struct file *file)
 { 
   printk(KERN_INFO "Opened instance.\n");
-
+  //per_sec = 1/blink;
+  mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000 / blink));
+  
   return 0;
 }
 
@@ -126,8 +162,8 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
 
   char *kern_buf;
   ssize_t result;
-  int *ptr_result;
-  int store_val;
+  long *ptr_result;
+  long store_val;
   long to_write = 0;
   ptr_result = &store_val;
   int val;
@@ -166,30 +202,40 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
     goto out;
   }
 
+  kern_buf[len-1] = '\0';
+
   val = strlen(kern_buf);
 
   printk(KERN_INFO "strlen(kern_buf) %d\n", val);
   printk(KERN_INFO "kern_buf %s\n", kern_buf);
-  //val = kstrtoint(kern_buf, 10, ptr_result);
+  val = kstrtol(kern_buf, 10, ptr_result);
  
-  to_write = simple_strtol(kern_buf, dest, 10);
+  //to_write = simple_strtol(kern_buf, dest, 10);
 
   //val = sscanf(buf, "%d", &to_write);
 
-  printk(KERN_INFO "to_write %d\n", to_write); 
-  /*if (val)  
+  printk(KERN_INFO "*ptr_result %d\n", *ptr_result); 
+  if (val)  
   {
     printk(KERN_ERR "val %d\n", val); 
     printk(KERN_ERR "kstrtol!\n");
     result = -EFAULT;
     goto out;
-  }*/
+  }
+
+  if (*ptr_result < 0)
+  {
+
+    printk(KERN_ERR "Negative value, not allowed!\n");
+    result = -EINVAL;
+    goto out;
+  }
 
   result = len;
 
   //writel(to_write, pe->hw_addr + PE_REG_LEDS);
-  dev.blink_rate = to_write;  
-  blink = to_write;
+  dev.blink_rate = *ptr_result;  
+  blink = *ptr_result;
 
   *offset = 0;
 
@@ -331,6 +377,8 @@ static int __init kern_init(void)
     printk(KERN_INFO "Bad?\n");
   }
 
+  setup_timer(&my_timer, my_timer_callback, 0);
+
   printk(KERN_INFO "Device %s should be created and loaded?!", DEV_NAME);
 
   return result;
@@ -345,6 +393,7 @@ static void __exit kern_exit(void)
   device_destroy(my_pci, dev_node);
   class_destroy(my_pci);
   pci_unregister_driver(&pe_driver);
+  del_timer_sync(&my_timer);
   printk(KERN_INFO "Unloaded.");
 }
 
