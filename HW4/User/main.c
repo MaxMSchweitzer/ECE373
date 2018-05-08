@@ -27,7 +27,7 @@ int main()
 
   strcpy(toSend, "20");
   
-  fd = open("/dev/HW4_pci", O_RDWR);
+  fd = open("/dev/ece_led", O_RDWR);
   if (fd < 0)
   {
     printf("Open error: %d\n", fd);

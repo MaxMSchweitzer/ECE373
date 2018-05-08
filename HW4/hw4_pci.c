@@ -1,12 +1,14 @@
 /* Max Schweitzer
    ECE 373
-   Homework 3 - PCI LED Driver
+   Homework 4 - PCI LED Driver
    This code implements a basic pci driver,
    with open, close, read, and write functions,
    and the ability to blink an LED for the
    Intel 82540EM Gigabit Ethernet Controller.
    PCI functions implemented are probe and 
-   remove.
+   remove. The LED blink rate is controlled
+   by a timer, using the blink_rate module
+   parameter.
    4/30/18
 */   
 
@@ -21,16 +23,13 @@
 #include <linux/pci.h>
 
 #define DEV_COUNT 2
-#define DEV_NAME "HW4_pci"
+#define DEV_NAME "ece_led"
 
 #define PE_REG_LEDS 0x00E00
 #define LED0_MASK 0x0000000F
 
 
 #define DEVICE_NAME "pci_char"
-//#define CLASS_NAME "pci"
-
-//static float per_sec;
 
 static struct class *my_pci = NULL;
 
@@ -54,15 +53,15 @@ static struct dev_info
   struct cdev cdev;
 
   // User defineable and interactable variable.
-  int blink_rate;
+  int blink;
 } dev;
 
 static dev_t dev_node;
 
 // Starting value for syscall_val, gets applied during init.
-static int blink = 2;
+static int blink_rate = 2;
 
-module_param(blink, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+module_param(blink_rate, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
 #define LED_ON  0x0000000e
 #define LED_OFF 0x0000000f
@@ -75,11 +74,9 @@ void my_timer_callback(unsigned long data)
 {
   printk(KERN_INFO "Callback!\n");
 
-  if (blink > 0)
+  if (dev.blink > 0)
   {
-    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / blink) / 2));
-    printk(KERN_INFO "Blink = %d\n", ((1000 / blink)) / 2);
-  
+    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / dev.blink) / 2));
   
     toRead = readl(pe->hw_addr + PE_REG_LEDS);
     toRead = toRead & (~LED0_MASK);
@@ -97,16 +94,18 @@ void my_timer_callback(unsigned long data)
   }
 }
 
-
+// When the device is opened form any source, it will begin to blink the LED,
+// unless an invalid blink_rate value is set.
 static int open(struct inode *inode, struct file *file)
 { 
   printk(KERN_INFO "Opened instance.\n");
-  //per_sec = 1/blink;
-  // TODO MAX maybe a flag here so it doesn't mod timer
-  // anytime it's opened?
-  if (blink > 0)
+  if (dev.blink > 0)
   {
-    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / blink) / 2));
+    mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / dev.blink) / 2));
+  }
+  else
+  {
+    printk(KERN_ERR "Invalid value %d for blink_rate", dev.blink);
   }
   return 0;
 }
@@ -117,7 +116,7 @@ static int release(struct inode *inode, struct file *file)
   return 0;
 }
 
-// Simple read function, allowing the current value of LEDCTL register to be passed to user.
+// Simple read function, allowing the current value of blink_rate to be passed to user.
 static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 {
   ssize_t result;
@@ -140,11 +139,7 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
     goto out;
   }
 
-
-  //int result = kstrtol(
-
-  snprintf(temp, sizeof(uint32_t),"%d\n", dev.blink_rate);
-
+  snprintf(temp, sizeof(uint32_t),"%d\n", dev.blink);
 
   // Send it to the user.
   if (copy_to_user(buf, temp, strlen(temp)))
@@ -158,14 +153,14 @@ static ssize_t kern_read(struct file *file, char __user *buf, size_t len, loff_t
   *offset += len;
 
   // If we made it here, we passed it back okay. Probably.
-  printk(KERN_INFO "Passed user %d\n", dev.blink_rate);
+  printk(KERN_INFO "Passed user %d\n", dev.blink);
 
 out:
   return result;
 }
 
 
-// Simple write function, allowing user space to modify LEDCTL value.
+// Simple write function, allowing user space to modify blink_rate value.
 static ssize_t kern_write(struct file *file, const char __user *buf, size_t len, loff_t * offset)
 {
 
@@ -215,26 +210,16 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
 
   val = strlen(kern_buf);
 
-  printk(KERN_INFO "strlen(kern_buf) %d\n", val);
-  printk(KERN_INFO "kern_buf %s\n", kern_buf);
   val = kstrtol(kern_buf, 10, ptr_result);
  
-  //to_write = simple_strtol(kern_buf, dest, 10);
-
-  //val = sscanf(buf, "%d", &to_write);
-
-  printk(KERN_INFO "*ptr_result %d\n", *ptr_result); 
   if (val)  
   {
-    printk(KERN_ERR "val %d\n", val); 
-    printk(KERN_ERR "kstrtol!\n");
     result = -EFAULT;
     goto out;
   }
 
   if (*ptr_result < 0)
   {
-
     printk(KERN_ERR "Negative value, not allowed!\n");
     result = -EINVAL;
     goto out;
@@ -242,14 +227,13 @@ static ssize_t kern_write(struct file *file, const char __user *buf, size_t len,
 
   result = len;
 
-  //writel(to_write, pe->hw_addr + PE_REG_LEDS);
-  dev.blink_rate = *ptr_result;  
-  blink = *ptr_result;
+  dev.blink = *ptr_result;  
+  blink_rate = *ptr_result;
 
   *offset = 0;
 
   // We should be good then.
-  printk(KERN_INFO "User wrote %d\n", to_write);
+  printk(KERN_INFO "User wrote %d\n", dev.blink);
 
 mem_out:
   kfree(kern_buf);
@@ -375,7 +359,7 @@ static int __init kern_init(void)
   else
   {
     // Add worked, so let's initialize the value.
-    dev.blink_rate = blink;
+    dev.blink = blink_rate;
   }
 
   device_create(my_pci, NULL ,dev_node, NULL, DEV_NAME);
