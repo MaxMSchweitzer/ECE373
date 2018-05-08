@@ -30,15 +30,15 @@ static struct dev_info
   struct cdev cdev;
 
   // User defineable and interactable variable.
-  int syscall_val;
+  int blink_rate;
 } dev;
 
 static dev_t dev_node;
 
 // Starting value for syscall_val, gets applied during init.
-static int test = 25;
+static int blink = 25;
 
-module_param(test, int, S_IRUSR | S_IWUSR);
+module_param(blink, int, S_IRUSR | S_IWUSR);
 
 static const struct pci_device_id pe_pci_tbl[] = {
   { PCI_DEVICE(0x8086, 0x100e), 0, 0, 0 },

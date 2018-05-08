@@ -1,9 +1,9 @@
 /* Max Schweitzer
    ECE 373
-   Homework 3 - PCI LED Driver
+   Homework 4 - PCI LED Driver
    This code implements a user space program to
    test a basic PCI driver that can blink an LED.
-   4/22/18
+   5/1/18
 */
 
 #include <stdio.h>
@@ -20,9 +20,6 @@
 int main()
 {
   int fd;
-  //uint32_t toSend = 0;
-  //uint32_t toRead = 0;
-
   char toSend[LENGTH] = {0};
 
   strcpy(toSend, "20");
@@ -46,13 +43,7 @@ int main()
 
   printf("Was read:             %s\n", toSend);
 
-  // Turn on LED0
-  //toSend = 0;
- 
-  // Read, modify, write so we don't clobber reserved bits.
-  //toRead = toRead & (~LED0_MASK);
-  //toSend = toRead | 0x0000000e;
-
+  // Change blink rate
   strcpy(toSend, "5");
 
   printf("Will write:           %s\n", toSend);
@@ -64,8 +55,28 @@ int main()
     return 1;
   }
 
-  // Overwrite before we read again.
-  //toRead = 0;
+  ret = read(fd, toSend, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error reading");
+    return 1;
+  }
+
+  printf("Was read after write: %s\n", toSend);
+
+  sleep(2); 
+
+  // Change blink rate
+  strcpy(toSend, "1");
+
+  printf("Will write:           %s\n", toSend);
+  
+  ret = write(fd, &toSend, sizeof(uint32_t));
+  if (ret < 0)
+  {
+    printf("Error writing!");
+    return 1;
+  }
 
   ret = read(fd, toSend, sizeof(uint32_t));
   if (ret < 0)
@@ -75,25 +86,7 @@ int main()
   }
 
   printf("Was read after write: %s\n", toSend);
-/*
-  sleep(2); 
-
-  // Turn off LED0
-  toSend = 0;
-
-  // Read modify write
-  toRead = toRead & (~LED0_MASK);
-  toSend = toRead | 0x0000000f;
-
-  printf("Will write:           0x%08x\n", toSend);
   
-  ret = write(fd, &toSend, sizeof(uint32_t));
-  if (ret < 0)
-  {
-    printf("Error writing!");
-    return 1;
-  }
-  */
   ret = close(fd);
 
   return ret;
