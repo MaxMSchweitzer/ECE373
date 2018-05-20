@@ -1,0 +1,48 @@
+Script started on Mon 30 Apr 2018 02:10:05 PM PDT
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# insod[K[Kmod hw3_pci..ko 
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# mknod /dev/hw3 _pci c 243 0
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03 .0
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# lspci -s 00:03..0 -v
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: e1000
+	Kernel modules: e1000
+
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# d[Klspci -s 00:03..0 -v[K -v[A]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# [K
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cecho 0000:00:0 3.0 > /sys/module/drm[K[K[Ke1000/mod[K[K[Kdrivers/pci\:e1000/unbind
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# echo 0000:00:0 3.0 > /sys/module/hw3_pci/drivers/pci\:pci_example/b ind
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# echo 0000:00:033.0 > /sys/module/hw3_pci/drivers/pci\:pci_example/biind[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[3Pe1000/drivers/pci\:e1000/unbind
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Alspci -s 00:03.0 -v[K
+00:03.0 Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 03)
+	Subsystem: Red Hat, Inc QEMU Virtual Machine
+	Physical Slot: 3
+	Flags: bus master, fast devsel, latency 0, IRQ 11
+	Memory at fc040000 (32-bit, non-prefetchable) [size=128K]
+	I/O ports at c000 [size=64]
+	Expansion ROM at fc000000 [disabled] [size=256K]
+	Kernel driver in use: pci_example
+	Kernel modules: e1000
+
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3root@MaxVirt:/home/max/ECE373-A2/HW3# cd User/
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# cd User/lspci -s 000:03.0 -v[A]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# echo 0000:[C0:03.0 > /sys/module/hw3_pci/drivers/pci\:pci_exampple/bind[A[A]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# lspci -s 0[C:03.0 -v[K
+[K[A[C[C[C[C[C[C[C[C[C[C[A]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# [1Pcd User/
+[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K./user 
+Was read:             0x00000602
+Will write:           0x0000060e
+Was read after write: 0x0000060e
+Will write:           0x0000000f
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# ./user 
+Was read:             0x0000000f
+Will write:           0x0000000e
+Was read after write: 0x0000000e
+Will write:           0x0000000f
+]0;root@MaxVirt: /home/max/ECE373-A2/HW3/Userroot@MaxVirt:/home/max/ECE373-A2/HW3/User# exit
+exit
+
+Script done on Mon 30 Apr 2018 02:19:49 PM PDT

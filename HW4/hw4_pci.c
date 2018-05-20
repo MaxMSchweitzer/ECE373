@@ -72,8 +72,6 @@ static bool on = true;
 
 void my_timer_callback(unsigned long data)
 {
-  printk(KERN_INFO "Callback!\n");
-
   if (dev.blink > 0)
   {
     mod_timer(&my_timer, jiffies + msecs_to_jiffies((1000 / dev.blink) / 2));
@@ -249,11 +247,13 @@ static struct file_operations dev_fops = {
   .release = release
 };
 
-// TODO clean up comments, maybe rename some stuff
+
 static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
   uint32_t ioremap_len;
   int bars, err;
+
+  setup_timer(&my_timer, my_timer_callback, 0);
 
   err = pci_enable_device_mem(pdev);
   if (err)
@@ -296,7 +296,9 @@ static int pe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 (unsigned int)pci_resource_len(pdev, 0), err);
     goto err_ioremap;
   }
-  
+ 
+  dev.blink = blink_rate;
+ 
   return 0;
 
 err_ioremap:
@@ -321,6 +323,7 @@ static void pe_remove(struct pci_dev *pdev)
 
   pci_release_selected_regions(pdev, pci_select_bars(pdev, IORESOURCE_MEM));
   pci_disable_device(pdev);
+  del_timer_sync(&my_timer);
 }
 
 static struct pci_driver pe_driver = {
@@ -351,10 +354,14 @@ static int __init kern_init(void)
   cdev_init(&dev.cdev, &dev_fops);
   dev.cdev.owner = THIS_MODULE;
 
-  if (cdev_add(&dev.cdev, dev_node, DEV_COUNT))
+  result = cdev_add(&dev.cdev, dev_node, DEV_COUNT);
+
+  // TODO use gotos in future assignments to ease my pain
+  if (result)
   {
     printk(KERN_ERR "Failed to add!\n");
     unregister_chrdev_region(dev_node, DEV_COUNT);
+    return result;
   }
   else
   {
@@ -369,9 +376,6 @@ static int __init kern_init(void)
   {
     printk(KERN_INFO "Bad?\n");
   }
-
-  setup_timer(&my_timer, my_timer_callback, 0);
-
   printk(KERN_INFO "Device %s should be created and loaded?!", DEV_NAME);
 
   return result;
@@ -386,7 +390,6 @@ static void __exit kern_exit(void)
   device_destroy(my_pci, dev_node);
   class_destroy(my_pci);
   pci_unregister_driver(&pe_driver);
-  del_timer_sync(&my_timer);
   printk(KERN_INFO "Unloaded.");
 }
 
