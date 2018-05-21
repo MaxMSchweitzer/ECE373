@@ -132,7 +132,7 @@ int main (int argc, char **argv)
   for (int i = 0; i < 5; i++)
   {
     result = register_read(dev, LEDCTL, &read); 
-    printf("0x%08x read from 0x%08x \n", read, (unsigned int)LEDCTL); 
+    printf("0x%08x read from 0x%08x \n", read, (unsigned int)dev->base_addr[0] + LEDCTL); 
     write = (read & ~(led[i])) | (led_start << (i*8));
     result = register_write(dev, LEDCTL, &write);
     sleep(1);
@@ -142,8 +142,12 @@ int main (int argc, char **argv)
   printf("Will write 0x%08x to 0x%08x \n", LEDCTL_orig, (unsigned int)dev->base_addr[0] + LEDCTL);
   result = register_write(dev, LEDCTL, &LEDCTL_orig);
 
-  result = register_read(dev, GOOD_PACKETS, &read);
-  printf("0x%08x read from 0x%08x \n", read, (unsigned int)(dev->base_addr[0] + GOOD_PACKETS));
+  for (int i = 0; i < 20; i++)
+  {
+    result = register_read(dev, GOOD_PACKETS, &read);
+    printf("0x%08x read from 0x%08x \n", read, (unsigned int)(dev->base_addr[0] + GOOD_PACKETS));
+    sleep(1);
+  }
 
   return 0;
 }
