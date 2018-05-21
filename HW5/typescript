@@ -1,0 +1,17 @@
+Script started on Mon 21 May 2018 02:21:45 PM PDT
+]0;root@MaxVirt: /home/max/ECE373-A2/HW5root@MaxVirt:/home/max/ECE373-A2/HW5# exit./user 8086:1000e
+00:09.0 (8086:100e)
+Intel Corporation 82540EM Gigabit Ethernet Controller
+0xfc0a0000
+LEDCTL original value 0x00000602 read from 0xfc0a0e00 
+Will write 0x000e060e to 0xfc0a0e00 
+0x000e060e read from 0xfc0a0e00 
+Will write 0x00000000 to 0xfc0a0e00 
+Will write 0x00000602 to 0xfc0a0e00 
+0x00000000 read from 0xfc0a4074 
+0x00000002 read from 0xfc0a4074 
+0x00000000 read from 0xfc0a4074 
+]0;root@MaxVirt: /home/max/ECE373-A2/HW5root@MaxVirt:/home/max/ECE373-A2/HW5# exit
+exit
+
+Script done on Mon 21 May 2018 02:22:25 PM PDT

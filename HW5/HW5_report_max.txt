@@ -1,3 +1,14 @@
+=============================================================
+Max Schweitzer
+ECE 373 - HW5 - PCI LED blink driver in userspace
+PJ
+5/21/2018
+=============================================================
+
+=============================================================
+What to turn in: 1. User program source and Makefile
+=============================================================
+
 /*
   Max Schweitzer
   ECE 373
@@ -34,8 +45,6 @@ static struct pci_filter filter;
 /*LED values to turn on in a loop, facilitates ease of use in the loop part*/
 static uint32_t led[4] = {0x0000000F, 0x00000F00, 0x000F0000, 0x0F000000};
 
-// TODO add comments
-// TODO add error cehcking
 static int register_read(struct pci_dev *dev, uint32_t address, uint32_t *read_value)
 {
   int pci_fd = open("/dev/mem", O_RDONLY | O_SYNC);
@@ -193,3 +202,52 @@ int main (int argc, char **argv)
 
   return 0;
 }
+
+=============================================================
+Makefile
+=============================================================
+
+# Super simple makefile.
+all: 
+	gcc -g -o user hw5_main.c -lpci -lz
+
+clean:
+	rm user
+
+=============================================================
+What to turn in: 2. Short explanation
+=============================================================
+
+That the user space program / driver does not replace the
+kernel driver or interfere with it.
+
+=============================================================
+What to turn in: 3. Typescript
+=============================================================
+
+Script started on Mon 21 May 2018 02:21:45 PM PDT
+root@MaxVirt:/home/max/ECE373-A2/HW5# ./user 8086:100e
+00:09.0 (8086:100e)
+Intel Corporation 82540EM Gigabit Ethernet Controller
+0xfc0a0000
+LEDCTL original value 0x00000602 read from 0xfc0a0e00 
+Will write 0x000e060e to 0xfc0a0e00 
+0x000e060e read from 0xfc0a0e00 
+Will write 0x00000000 to 0xfc0a0e00 
+Will write 0x00000602 to 0xfc0a0e00 
+0x00000000 read from 0xfc0a4074 
+0x00000002 read from 0xfc0a4074 
+0x00000000 read from 0xfc0a4074 
+root@MaxVirt:/home/max/ECE373-A2/HW5# exit
+exit
+
+Script done on Mon 21 May 2018 02:22:25 PM PDT
+
+=============================================================
+What to turn in: 4. Note from someone (probably Brett) 
+=============================================================
+
+Sign here: 
+-------------------------------------------------------------
+
+
